@@ -1457,9 +1457,9 @@ function App() {
   const [tab,setTab]=useState('analytics');
   const [showCfg,setShowCfg]=useState(!initSupa());
   const [isLive,setIsLive]=useState(initSupa());
-  const [eqTrades,setEqTrades]=useState(DEMO_EQ);
-  const [optTrades,setOptTrades]=useState(DEMO_OPT);
-  const [usTrades,setUsTrades]=useState(DEMO_US);
+  const [eqTrades,setEqTrades]=useState(initSupa()?[]:DEMO_EQ);
+  const [optTrades,setOptTrades]=useState(initSupa()?[]:DEMO_OPT);
+  const [usTrades,setUsTrades]=useState(initSupa()?[]:DEMO_US);
   const [chartSessions,setChartSessions]=useState([]);
   const [rules,setRules]=useState(()=>PRELOADED_RULES.map((r,i)=>({...r,id:'pr_'+i})));
   const [loading,setLoading]=useState(false);
@@ -1470,9 +1470,9 @@ function App() {
   const loadFromSupa=async()=>{
     setLoading(true);
     const [eq,opt,us]=await Promise.all([dbLoad('equity'),dbLoad('options'),dbLoad('us')]);
-    if(eq&&eq.length)setEqTrades(eq);
-    if(opt&&opt.length)setOptTrades(opt);
-    if(us&&us.length)setUsTrades(us);
+    if(eq!==null)setEqTrades(eq);
+    if(opt!==null)setOptTrades(opt);
+    if(us!==null)setUsTrades(us);
     setLoading(false);
   };
 
