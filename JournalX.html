@@ -1057,8 +1057,7 @@ function EquityTab({trades, setTrades, isLive}) {
     ),
     showAdd&&h(TradeModal,{type:'equity',initial:editT,onClose:()=>{setShowAdd(false);setEditT(null);},onSave:handleSave}),
     showMTM&&h(MTMModal,{trades,onSave:prices=>{setTrades(ts=>ts.map(t=>prices[t.id]!==undefined?{...t,cmp:parseFloat(prices[t.id])||t.cmp}:t));setShowMTM(false);},onClose:()=>setShowMTM(false)}),
-    delId&&h(Confirm,{title:'Delete Trade?',body:'Permanently remove this trade.',onConfirm:()=>handleDelete(delId),onCancel:()=>setDelId(null)}),
-    showPreview&&h(CsvPreviewModal,{trades:csvTrades,onConfirm:async ts=>{ts.forEach(async t=>{const nT={...t,id:'eq_'+Date.now()+Math.random()};setTrades(ts2=>[nT,...ts2]);if(isLive)await dbSave('equity',nT);});setShowPreview(false);setShowAdd(false);},onCancel:()=>setShowPreview(false)})
+    delId&&h(Confirm,{title:'Delete Trade?',body:'Permanently remove this trade.',onConfirm:()=>handleDelete(delId),onCancel:()=>setDelId(null)})
   );
 }
 
@@ -1119,8 +1118,7 @@ function OptionsTab({trades, setTrades, isLive}) {
       ))
     ),
     showAdd&&h(TradeModal,{type:'options',initial:editT,onClose:()=>{setShowAdd(false);setEditT(null);},onSave:handleSave}),
-    delId&&h(Confirm,{title:'Delete Trade?',body:'Permanently remove this options trade.',onConfirm:()=>handleDelete(delId),onCancel:()=>setDelId(null)}),
-    showPreview&&h(CsvPreviewModal,{trades:csvTrades,onConfirm:async ts=>{ts.forEach(async t=>{const nT={...t,id:'opt_'+Date.now()+Math.random()};setTrades(ts2=>[nT,...ts2]);if(isLive)await dbSave('options',nT);});setShowPreview(false);setShowAdd(false);},onCancel:()=>setShowPreview(false)})
+    delId&&h(Confirm,{title:'Delete Trade?',body:'Permanently remove this options trade.',onConfirm:()=>handleDelete(delId),onCancel:()=>setDelId(null)})
   );
 }
 
@@ -1169,8 +1167,7 @@ function USTab({trades, setTrades, isLive}) {
       ))
     ),
     showAdd&&h(TradeModal,{type:'us',initial:editT,onClose:()=>{setShowAdd(false);setEditT(null);},onSave:handleSave}),
-    delId&&h(Confirm,{title:'Delete Trade?',body:'Permanently remove this US trade.',onConfirm:()=>handleDelete(delId),onCancel:()=>setDelId(null)}),
-    showPreview&&h(CsvPreviewModal,{trades:csvTrades,onConfirm:async ts=>{ts.forEach(async t=>{const nT={...t,id:'us_'+Date.now()+Math.random()};setTrades(ts2=>[nT,...ts2]);if(isLive)await dbSave('us',nT);});setShowPreview(false);setShowAdd(false);},onCancel:()=>setShowPreview(false)})
+    delId&&h(Confirm,{title:'Delete Trade?',body:'Permanently remove this US trade.',onConfirm:()=>handleDelete(delId),onCancel:()=>setDelId(null)})
   );
 }
 
