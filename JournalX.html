@@ -199,10 +199,14 @@ const CAT_COLOR = {Entry:'var(--accent)',Exit:'var(--cyan)',Risk:'var(--red)',Ps
 
 // ── SUPABASE ──
 let supa = null;
+const SUPA_URL = 'https://tsgltaqbxtisebqmbffg.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzZ2x0YXFieHRpc2VicW1iZmZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NTEyMDEsImV4cCI6MjA5MTEyNzIwMX0.SQGq9E67S7j977RUA-oJqDGV8KgEhQZb0nHfAvHcFys';
 function initSupa() {
-  const u = localStorage.getItem('supa_url'), k = localStorage.getItem('supa_key');
-  if (u && k) { supa = window.supabase.createClient(u, k); return true; }
-  return false;
+  // Always use hardcoded credentials
+  localStorage.setItem('supa_url', SUPA_URL);
+  localStorage.setItem('supa_key', SUPA_KEY);
+  supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  return true;
 }
 const TBL = {equity:'equity_trades',options:'options_trades',us:'us_trades'};
 async function dbLoad(type) {
@@ -1563,8 +1567,8 @@ function App() {
   const [theme,setTheme]=useState(()=>localStorage.getItem('jx_theme')||'dark');
   const [authed,setAuthed]=useState(()=>localStorage.getItem('jx_auth')==='1');
   const [tab,setTab]=useState('analytics');
-  const [showCfg,setShowCfg]=useState(!initSupa());
-  const [isLive,setIsLive]=useState(initSupa());
+  const [showCfg,setShowCfg]=useState(false);
+  const [isLive,setIsLive]=useState(true);
   const [eqTrades,setEqTrades]=useState(initSupa()?[]:DEMO_EQ);
   const [optTrades,setOptTrades]=useState(initSupa()?[]:DEMO_OPT);
   const [usTrades,setUsTrades]=useState(initSupa()?[]:DEMO_US);
