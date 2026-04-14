@@ -8,6 +8,7 @@
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 
@@ -266,46 +267,99 @@ async function batchInsights(trades) {
 const PRELOADED_RULES = [{"rule_text": "Mark previous swing high/low, previous day range and key liquidity levels before market opens", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "First 15 minutes is a no-trade zone. Only observe how the ORB is forming", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "ORB Wide more than 40% Daily ATR: wait for rejection at liquidity level, enter Type 1 ORR opposite to initial move. SL = rejection candle high/low", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "ORB Narrow: wait for 5min candle to CLOSE outside ORB with small wicks. Enter on BO candle high/low breach", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "Analysis on 15min chart. Execution on 5min chart", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "BO candle must NOT be XXL. If XXL, wait for retrace to key level before entry", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "9 EMA and 20 EMA must be aligned in breakout direction on BOTH 5min and 15min TF with visible gap between them", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "Daily TF + 15min + 5min all aligned = highest probability trade", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "If daily TF is bullish, short trades carry high reversal risk", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "EMA must show a slope indicating trend. Flat EMAs = fake signals, do not trade", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "Gap up more than 2% or move more than 40% ATR = mostly no-trade or wait for 2nd half", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "No new entries after 3 PM in BankNifty", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "Pullback to 9 EMA entry gives best risk-reward ratio", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "No trades inside the ORB zone", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "No trades outside watchlist", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "Clear close OUTSIDE ORB required for a valid breakout", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "Trail SL: first move to entry, then trail with swing highs/lows, fast move = trail 20-30 points from premium", "category": "Exit", "status": "Active", "source": "manual"}, {"rule_text": "Option strike = ATM or one step OTM only", "category": "Entry", "status": "Active", "source": "manual"}, {"rule_text": "Kill Switch: 2 back-to-back SLs hit, stop all trading for the day", "category": "Kill Switch", "status": "Active", "source": "manual"}, {"rule_text": "Kill Switch: First trade loss more than Rs 2000, stop all trading", "category": "Kill Switch", "status": "Active", "source": "manual"}, {"rule_text": "Kill Switch: First trade profit more than Rs 3000 then another trade out of impatience, stop", "category": "Kill Switch", "status": "Active", "source": "manual"}, {"rule_text": "Kill Switch: Previous day loss more than Rs 3000, kill switch for next day too", "category": "Kill Switch", "status": "Active", "source": "manual"}, {"rule_text": "Missing a trade is fine. A wrong trade hurts capital AND confidence", "category": "Psychology", "status": "Active", "source": "manual"}, {"rule_text": "Never enter just because price is approaching ORB. Wait for actual break and close", "category": "Psychology", "status": "Active", "source": "manual"}, {"rule_text": "Trading is probability. Even rule-following trades can lose. Accept this, no revenge trading", "category": "Psychology", "status": "Active", "source": "manual"}, {"rule_text": "Always watch price reaction at 200 EMA on 5min, 15min and daily TF", "category": "Setup Filter", "status": "Active", "source": "manual"}, {"rule_text": "Stock already moved significantly may consolidate even above 9/20 EMA, avoid", "category": "Setup Filter", "status": "Active", "source": "manual"}];
 const QUOTES = [{"text": "The market transfers money from the impatient to the patient.", "author": "Warren Buffett", "emoji": "\ud83e\uddd8"}, {"text": "Every loss is tuition. Make sure you learn the lesson.", "author": "Anonymous Trader", "emoji": "\ud83d\udcda"}, {"text": "A stop loss is not a failure. It is discipline in action.", "author": "Anonymous", "emoji": "\ud83d\udee1\ufe0f"}, {"text": "Cut losses short. Let profits run. Repeat for 30 years.", "author": "Ed Seykota", "emoji": "\u2702\ufe0f"}, {"text": "One bad trade does not define you. One bad habit does.", "author": "Anonymous Trader", "emoji": "\u26a1"}, {"text": "The best traders have no ego. The market will humble you.", "author": "Paul Tudor Jones", "emoji": "\ud83d\ude4f"}, {"text": "Today's red candle is tomorrow's support level.", "author": "Anonymous Trader", "emoji": "\ud83d\udcca"}, {"text": "Process over outcomes. Every. Single. Day.", "author": "Anonymous Trader", "emoji": "\ud83d\udd04"}, {"text": "A red day with discipline beats a green day with FOMO.", "author": "Anonymous Trader", "emoji": "\ud83d\udd34"}, {"text": "Market is not your enemy. Your emotions are.", "author": "Anonymous Trader", "emoji": "\ud83e\udde0"}];
 
-// ── BULK CSV PARSER ──
+// ── BULK CSV PARSER (Zerodha FO + EQ) ──
+function parseSymbolFO(sym) {
+  if (!sym) return {};
+  const m = sym.match(/^([A-Z]+?)\d{2}([A-Z]{3})(\d+)(CE|PE)$/);
+  if (m) return {stock:m[1], expiry_month:m[2], strike:parseInt(m[3]), option_type:m[4]};
+  return {stock:sym};
+}
+
 function parseFullZerodhaCsv(text) {
-  const lines = text.trim().split('\n').filter(l => l.trim());
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
   if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,'').toLowerCase());
-  const rows = lines.slice(1).map(l => {
-    const cols = l.split(',').map(c => c.trim().replace(/"/g,''));
-    const obj = {}; headers.forEach((h,i) => obj[h] = cols[i]||'');
-    return obj;
-  });
-  // Group by symbol to match buy+sell
+
+  // Find header row
+  let headerIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const lower = lines[i].toLowerCase();
+    if (lower.includes('symbol') && lower.includes('trade type')) { headerIdx = i; break; }
+    if (lower.includes('trade date') && lower.includes('quantity')) { headerIdx = i; break; }
+  }
+  if (headerIdx < 0) headerIdx = 0;
+
+  const headers = lines[headerIdx].split(',').map(h => h.trim().replace(/"/g,'').toLowerCase());
+  const dataLines = lines.slice(headerIdx + 1).filter(l => l && l.replace(/,/g,'').trim());
+
+  const getCol = (row, ...names) => {
+    for (const n of names) {
+      const idx = headers.findIndex(h => h.includes(n));
+      if (idx >= 0 && row[idx] !== undefined) return (row[idx]||'').trim().replace(/"/g,'');
+    }
+    return '';
+  };
+
+  const rows = dataLines.map(l => l.split(',').map(c => c.trim().replace(/"/g,'')));
+
+  // Group by symbol, keeping chronological order
   const bySymbol = {};
   rows.forEach(r => {
-    const sym = (r.symbol||r.scrip||r['trade symbol']||r.instrument||'').trim();
-    if (!sym) return;
-    if (!bySymbol[sym]) bySymbol[sym] = [];
-    bySymbol[sym].push(r);
+    const sym = getCol(r, 'symbol', 'scrip', 'instrument', 'stock');
+    if (!sym || sym.length < 2) return;
+    if (!bySymbol[sym]) bySymbol[sym] = {buys:[], sells:[]};
+    const tradeType = getCol(r, 'trade type', 'type', 'action', 'transaction').toLowerCase();
+    const qty = parseFloat(getCol(r, 'quantity', 'qty')) || 0;
+    const price = parseFloat(getCol(r, 'price', 'avg price', 'average price')) || 0;
+    const date = getCol(r, 'trade date', 'date', 'order date').slice(0,10).replace(/\//g,'-');
+    const timeRaw = getCol(r, 'order execution time', 'execution time', 'time');
+    const timeStr = timeRaw.length > 10 ? timeRaw.slice(11,16) : timeRaw.slice(0,5);
+    if (tradeType.includes('buy')) bySymbol[sym].buys.push({qty,price,date,time:timeStr});
+    else if (tradeType.includes('sell')) bySymbol[sym].sells.push({qty,price,date,time:timeStr});
   });
+
+  // Pair each buy with corresponding sell chronologically = one trade per pair
   const trades = [];
-  Object.entries(bySymbol).forEach(([sym, legs]) => {
-    const buys = legs.filter(l => (l.type||l['trade type']||l.action||'').toLowerCase().includes('buy'));
-    const sells = legs.filter(l => (l.type||l['trade type']||l.action||'').toLowerCase().includes('sell'));
-    // Handle multiple buy/sell legs
-    const maxLegs = Math.max(buys.length, sells.length, 1);
-    for (let i = 0; i < maxLegs; i++) {
-      const buy = buys[i] || buys[0];
-      const sell = sells[i] || null;
-      const qty = parseInt((buy && (buy.quantity||buy.qty)) || 1) || 1;
-      const buyP = parseFloat((buy && (buy.price||buy['avg price'])) || 0);
-      const sellP = sell ? parseFloat(sell.price||sell['avg price']||0) : null;
-      const buyDate = (buy && (buy.date||buy['trade date']||'')).replace(/\//g,'-');
-      const sellDate = sell ? (sell.date||sell['trade date']||'').replace(/\//g,'-') : null;
-      const g = sellP ? (sellP - buyP) * qty : null;
+  Object.entries(bySymbol).forEach(([sym, {buys, sells}]) => {
+    const parsed = parseSymbolFO(sym);
+    const pairs = Math.min(buys.length, sells.length);
+    for (let i = 0; i < pairs; i++) {
+      const b = buys[i], s = sells[i];
+      const pl = (s.price - b.price) * b.qty;
       trades.push({
-        stock: sym, quantity: qty, buy_price: buyP,
-        sell_price: sellP||null, buy_date: buyDate, sell_date: sellDate||null,
-        gross_pl: g, net_pl: g ? g*0.95 : null,
-        trade_result: sellP ? (sellP >= buyP ? 'PROFIT' : 'LOSS') : 'OPEN',
-        broker: 'Zerodha', person: 'Mahesh', trade_rating: 'DISCIPLINED'
+        stock: parsed.stock || sym,
+        option_type: parsed.option_type || 'CE',
+        strike: parsed.strike || null,
+        expiry_month: parsed.expiry_month || '',
+        quantity: b.qty,
+        buy_price: b.price,
+        sell_price: s.price,
+        buy_date: b.date,
+        sell_date: s.date,
+        buy_time: b.time,
+        sell_time: s.time,
+        gross_pl: Math.round(pl * 100) / 100,
+        net_pl: Math.round(pl * 0.95 * 100) / 100,
+        trade_result: pl >= 0 ? 'PROFIT' : 'LOSS',
+        broker: 'Zerodha', person: 'Mahesh',
+        trade_rating: 'DISCIPLINED', setup_type: 'ORB'
       });
+    }
+    // Any unmatched buys = open positions
+    if (buys.length > sells.length) {
+      for (let i = sells.length; i < buys.length; i++) {
+        const b = buys[i];
+        trades.push({
+          stock: parsed.stock || sym,
+          option_type: parsed.option_type || 'CE',
+          strike: parsed.strike || null,
+          expiry_month: parsed.expiry_month || '',
+          quantity: b.qty, buy_price: b.price, sell_price: null,
+          buy_date: b.date, sell_date: null, buy_time: b.time, sell_time: '',
+          gross_pl: null, net_pl: null, trade_result: 'OPEN',
+          broker: 'Zerodha', person: 'Mahesh',
+          trade_rating: 'DISCIPLINED', setup_type: 'ORB'
+        });
+      }
     }
   });
   return trades;
@@ -723,8 +777,26 @@ function TradeModal({type, initial, onClose, onSave}) {
           !isEdit&&importMode==='csv'&&div(null,null,
             div('upload-box',null,
               div(null,{style:{fontSize:22,pointerEvents:'none'}},'📄'),
-              div(null,{style:{fontSize:13,color:'var(--text3)',marginTop:5,pointerEvents:'none'}},'Drop Zerodha tradebook CSV'),
-              h('input',{type:'file',accept:'.csv,.txt',onChange:async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const t=await f.text();const parsed=parseFullZerodhaCsv(t);if(parsed.length>0){setCsvP(parsed.length);setCsvTrades(parsed);}else setCsvP(0);}})
+              div(null,{style:{fontSize:13,color:'var(--text3)',marginTop:5,pointerEvents:'none'}},'Drop Zerodha tradebook CSV or XLSX file'),
+              h('input',{type:'file',accept:'.csv,.txt,.xlsx,.xls',onChange:async e=>{
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  try {
+    let parsed=[];
+    if(f.name.endsWith('.xlsx')||f.name.endsWith('.xls')) {
+      // Handle Excel files with SheetJS
+      const ab=await f.arrayBuffer();
+      const wb=XLSX.read(ab,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const csv=XLSX.utils.sheet_to_csv(ws);
+      parsed=parseFullZerodhaCsv(csv);
+    } else {
+      const t=await f.text();
+      parsed=parseFullZerodhaCsv(t);
+    }
+    if(parsed.length>0){setCsvP(parsed.length);setCsvTrades(parsed);}
+    else setCsvP(0);
+  } catch(err){console.error(err);setCsvP(0);}
+}})
             ),
             csvP>0&&div(null,{style:{display:'flex',alignItems:'center',gap:8,marginTop:7}},span(null,{style:{fontSize:12,color:'var(--green)'}},'✓ Found '+csvP+' trade(s)'),btn('btn btn-p btn-sm',{onClick:()=>setShowPreview(true)},'Preview & Import →')),
           showPreview&&h(CsvPreviewModal,{trades:csvTrades,onConfirm:ts=>{ts.forEach(t=>onSave({...blank,...t},false));setShowPreview(false);onClose();},onCancel:()=>setShowPreview(false)}),
