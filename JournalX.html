@@ -1579,6 +1579,11 @@ function App() {
 
   useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('jx_theme',theme);},[theme]);
 
+  useEffect(()=>{
+    // Auto-load from Supabase on startup
+    loadFromSupa();
+  },[]);
+
   const loadFromSupa=async()=>{
     setLoading(true);
     const [eq,opt,us]=await Promise.all([dbLoad('equity'),dbLoad('options'),dbLoad('us')]);
