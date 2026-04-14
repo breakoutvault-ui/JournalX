@@ -731,10 +731,16 @@ function TradeModal({type, initial, onClose, onSave}) {
             csvP===0&&div(null,{style:{color:'var(--red)',fontSize:12,marginTop:6}},'Could not parse. Try manual entry.')
           ),
           !isEdit&&importMode==='screenshot'&&div(null,null,
-            div('upload-box',null,
-              div(null,{style:{fontSize:22,pointerEvents:'none'}},imgL?'⏳':'📸'),
-              div(null,{style:{fontSize:13,color:'var(--text3)',marginTop:5,pointerEvents:'none'}},imgL?'Reading screenshot...':'Upload Zerodha order screenshot'),
-              h('input',{type:'file',accept:'image/*',disabled:imgL,onChange:async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;setImgL(true);const reader=new FileReader();reader.onload=async ev=>{const b64=ev.target.result.split(',')[1];const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CLAUDE_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:f.type,data:b64}},{type:'text',text:'Extract trade from Zerodha screenshot. JSON only with these exact fields: stock (string), quantity (number), buy_price (number), sell_price (number or null), buy_date (YYYY-MM-DD or null). Null for missing.'}]}]})});const d=await res.json();try{const ex=JSON.parse(((d.content&&d.content[0]&&d.content[0].text)||'{}').replace(/```json|```/g,'').trim());Object.entries(ex).forEach(([k,v])=>{if(v!=null)set(k,v);});}catch(err){}setImgL(false);};reader.readAsDataURL(f);}})
+            div(null,{style:{border:'2px dashed var(--border2)',borderRadius:'var(--r)',padding:20,textAlign:'center',background:'var(--bg3)'}},
+              imgL ? div('ail',null,div('ad'),div('ad'),div('ad'),span(null,{style:{marginLeft:6,fontSize:13,color:'var(--text3)'}},'Reading screenshot... please wait')) :
+              div(null,null,
+                div(null,{style:{fontSize:28,marginBottom:8}},'📸'),
+                div(null,{style:{fontSize:13,color:'var(--text2)',marginBottom:12}},'Click button below to upload your Zerodha screenshot'),
+                h('label',{style:{display:'inline-flex',alignItems:'center',gap:6,padding:'8px 16px',background:'var(--accent)',color:'#fff',borderRadius:'var(--rs)',cursor:'pointer',fontSize:13,fontWeight:600}},
+                  'Choose Screenshot',
+                  h('input',{type:'file',accept:'image/*,image/jpeg,image/jpg,image/png',style:{display:'none'},disabled:imgL,onChange:async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;setImgL(true);const reader=new FileReader();reader.onload=async ev=>{const b64=ev.target.result.split(',')[1];try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CLAUDE_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:f.type||'image/jpeg',data:b64}},{type:'text',text:'Extract trade details from this Zerodha order screenshot. Reply with JSON only, no markdown. Fields: stock (string, e.g. BANKNIFTY), quantity (number), buy_price (number), sell_price (number or null), buy_date (YYYY-MM-DD or null), option_type (CE or PE or null), strike (number or null), expiry_month (e.g. APR or null). Use null for any missing field.'}]}]})});const d=await res.json();const txt=(d.content&&d.content[0]&&d.content[0].text)||'{}';const ex=JSON.parse(txt.replace(/```json|```/g,'').trim());Object.entries(ex).forEach(([k,v])=>{if(v!=null)set(k,v);});alert('Screenshot read successfully!');}catch(err){alert('Error reading screenshot: '+err.message);}setImgL(false);};reader.readAsDataURL(f);}})
+                )
+              )
             ),
             imgL&&div('ail',{style:{marginTop:7}},div('ad'),div('ad'),div('ad'),span(null,{style:{marginLeft:4}},'Extracting details...'))
           ),
