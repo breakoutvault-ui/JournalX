@@ -1579,10 +1579,7 @@ function App() {
 
   useEffect(()=>{document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('jx_theme',theme);},[theme]);
 
-  useEffect(()=>{
-    // Auto-load from Supabase on startup
-    loadFromSupa();
-  },[]);
+
 
   const loadFromSupa=async()=>{
     setLoading(true);
@@ -1592,6 +1589,10 @@ function App() {
     if(us!==null)setUsTrades(us);
     setLoading(false);
   };
+
+  useEffect(()=>{
+    loadFromSupa();
+  },[]);
 
   const saveCfg=async(url,key)=>{
     if(url&&key){localStorage.setItem('supa_url',url);localStorage.setItem('supa_key',key);supa=window.supabase.createClient(url,key);setIsLive(true);await loadFromSupa();}
