@@ -1179,18 +1179,50 @@ function OptionsTab({trades, setTrades, isLive}) {
   const [search,setSearch]=useState(''),[fs,setFs]=useState('All'),[fr,setFr]=useState('All');
   const [showAdd,setShowAdd]=useState(false),[editT,setEditT]=useState(null),[delId,setDelId]=useState(null),[aiRun,setAiRun]=useState(false);
   const [showPreview,setShowPreview]=useState(false),[csvTrades,setCsvTrades]=useState([]);
+  const [importing,setImporting]=useState(false),[importMsg,setImportMsg]=useState('');
   const [period,setPeriod]=useState('ALL'),[cs,setCs]=useState(''),[ce,setCe]=useState('');
   const filtered=trades.filter(t=>{if(search&&!(t.stock||'').toLowerCase().includes(search.toLowerCase()))return false;if(fs!=='All'&&t.setup_type!==fs)return false;if(fr!=='All'&&t.trade_result!==fr)return false;return true;});
   const totalPL=filtered.reduce((a,t)=>a+(t.net_pl||0),0);
   const wins=filtered.filter(t=>t.trade_result==='PROFIT').length;
   const handleSave=async(form,isEdit)=>{const g=form.sell_price&&form.buy_price&&form.quantity?((parseFloat(form.sell_price)-parseFloat(form.buy_price))*parseInt(form.quantity)):null;const u={...form,gross_pl:g,net_pl:g?g*.95:null,trade_result:form.sell_price?(parseFloat(form.sell_price)>=parseFloat(form.buy_price)?'PROFIT':'LOSS'):'OPEN'};if(isEdit){setTrades(ts=>ts.map(t=>t.id===u.id?u:t));}else{const nT={...u,id:'opt_'+Date.now()};setTrades(ts=>[nT,...ts]);if(isLive)await dbSave('options',nT);}setShowAdd(false);setEditT(null);};
+  const handleBulkImport=async(sel)=>{
+    setShowPreview(false);setImporting(true);
+    const now=Date.now();
+    const rows=sel.map((t,i)=>{
+      const g=t.sell_price&&t.buy_price&&t.quantity?((parseFloat(t.sell_price)-parseFloat(t.buy_price))*parseFloat(t.quantity)):null;
+      return {...t,id:'opt_'+now+'_'+i,gross_pl:g?Math.round(g*100)/100:null,net_pl:g?Math.round(g*.95*100)/100:null,trade_result:t.sell_price?(parseFloat(t.sell_price)>=parseFloat(t.buy_price)?'PROFIT':'LOSS'):'OPEN'};
+    });
+    setTrades(ts=>[...rows,...ts]);
+    if(isLive&&supa){
+      const {error}=await supa.from('options_trades').insert(rows);
+      if(error){setImportMsg('⚠ Local only — Supabase error: '+error.message);}
+      else{setImportMsg('✓ '+rows.length+' trades saved to Supabase!');}
+    } else {setImportMsg('✓ '+rows.length+' trades imported (demo mode)');}
+    setImporting(false);setTimeout(()=>setImportMsg(''),6000);
+  };
+  const handleCsvFile=async(e)=>{
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    try{
+      let parsed=[];
+      if(f.name.endsWith('.xlsx')||f.name.endsWith('.xls')){const ab=await f.arrayBuffer();const wb=XLSX.read(ab,{type:'array'});parsed=parseFullZerodhaCsv(XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]));}
+      else{parsed=parseFullZerodhaCsv(await f.text());}
+      if(parsed.length>0){setCsvTrades(parsed);setShowPreview(true);}
+      else setImportMsg('⚠ Could not parse any trades. Check file format.');
+    }catch(err){setImportMsg('⚠ Error: '+err.message);}
+    e.target.value='';
+  };
   const handleDelete=async id=>{setTrades(ts=>ts.filter(t=>t.id!==id));if(isLive)await dbDel('options',id);setDelId(null);};
   const upIns=(id,t)=>setTrades(ts=>ts.map(x=>x.id===id?{...x,ai_insight:t}:x));
   const runBatch=async()=>{setAiRun(true);const today=new Date().toISOString().split('T')[0];const tt=trades.filter(t=>(t.sell_date||t.buy_date)===today);if(!tt.length){alert('No trades today.');setAiRun(false);return;}const ins=await batchInsights(tt);ins.forEach(i=>{if(tt[i.index])upIns(tt[i.index].id,i.text);});setAiRun(false);};
   const chk=v=>v?span('cy',null,'✓'):span('cn',null,'✗');
   return div(null,null,
+    showPreview&&h(CsvPreviewModal,{trades:csvTrades,onConfirm:handleBulkImport,onCancel:()=>setShowPreview(false)}),
+    importMsg&&div(null,{style:{padding:'9px 14px',marginBottom:10,borderRadius:'var(--r)',background:importMsg.startsWith('⚠')?'rgba(239,68,68,.08)':'rgba(16,185,129,.08)',border:'1px solid '+(importMsg.startsWith('⚠')?'rgba(239,68,68,.3)':'rgba(16,185,129,.3)'),fontSize:13,color:importMsg.startsWith('⚠')?'var(--red)':'var(--green)'}},importMsg),
     div('cw',null,
-      div('ch',null,span('ct',null,'Options Buying Curve'),div(null,{style:{display:'flex',gap:7,flexWrap:'wrap'}},btn('btn btn-gr btn-sm',{onClick:runBatch,disabled:aiRun},aiRun?'Analysing...':'🤖 Batch AI Today'),btn('btn btn-g btn-sm',{onClick:()=>{setEditT(null);setShowAdd(true);}},'+ Log Trade'))),
+      div('ch',null,span('ct',null,'Options Buying Curve'),div(null,{style:{display:'flex',gap:7,flexWrap:'wrap'}},
+        btn('btn btn-gr btn-sm',{onClick:runBatch,disabled:aiRun},aiRun?'Analysing...':'🤖 Batch AI Today'),
+        h('label',{className:'btn btn-g btn-sm',style:{cursor:'pointer'}},importing?'⏳ Importing...':'📥 Import CSV/XLSX',h('input',{type:'file',accept:'.csv,.txt,.xlsx,.xls',style:{display:'none'},onChange:handleCsvFile,disabled:importing})),
+        btn('btn btn-g btn-sm',{onClick:()=>{setEditT(null);setShowAdd(true);}},'+ Log Trade'))),
       h(PeriodPicker,{value:period,onChange:setPeriod,cs,ce,onCC:(k,v)=>k==='s'?setCs(v):setCe(v)}),
       div(null,{style:{marginTop:10}},h(EquityCurve,{trades:filtered,colorKey:'opt',period,cs,ce}))
     ),
